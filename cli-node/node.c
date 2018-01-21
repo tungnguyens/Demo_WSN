@@ -35,13 +35,20 @@
 #include <stdint.h>
 #include <string.h>
 
+
 #define DEBUG DEBUG_PRINT
+#ifdef USING_TARGET_CC2530
 #include "net/uip-debug.h"
+#include "debug.h"
+#else//USING_TARGET_CC2530
+#include "net/ip/uip-debug.h"
+#endif//USING_TARGET_CC2530
+
 #include "dev/watchdog.h"
 #include "dev/leds.h"
 #include "net/rpl/rpl.h"
 #include "dev/button-sensor.h"
-#include "debug.h"
+
 
 #define UIP_IP_BUF   ((struct uip_ip_hdr *)&uip_buf[UIP_LLH_LEN])
 #define UIP_UDP_BUF  ((struct uip_udp_hdr *)&uip_buf[uip_l2_l3_hdr_len])
@@ -58,22 +65,40 @@ static uint16_t len;
 PROCESS(udp_server_process, "UDP server process");
 AUTOSTART_PROCESSES(&udp_server_process);
 /*---------------------------------------------------------------------------*/
+
 static void 
 get_my_adrress(uip_ipaddr_t *ipaddr) {
-  uint16_t ip[4];
 
+  uint16_t ip[4];
+#ifdef  USING_TARGET_CC2530
   ip[0] = ((uint16_t)rimeaddr_node_addr.u8[0])<<8|(uint16_t)rimeaddr_node_addr.u8[1];
   ip[1] = ((uint16_t)rimeaddr_node_addr.u8[2])<<8|(uint16_t)rimeaddr_node_addr.u8[3];
   ip[2] = ((uint16_t)rimeaddr_node_addr.u8[4])<<8|(uint16_t)rimeaddr_node_addr.u8[5];
   ip[3] = ((uint16_t)rimeaddr_node_addr.u8[6])<<8|(uint16_t)rimeaddr_node_addr.u8[7];
+#else // USING_TARGET_CC2530
+  uint8_t longaddr[8];
+  memset(longaddr, 0, sizeof(longaddr));
+  linkaddr_copy((linkaddr_t *)&longaddr, &linkaddr_node_addr);
+  //printf("My MAC =  %02x%02x:%02x%02x:%02x%02x:%02x%02x \n",
+         //longaddr[0], longaddr[1], longaddr[2], longaddr[3],
+         //longaddr[4], longaddr[5], longaddr[6], longaddr[7]);
+  ip[0] = ((uint16_t)longaddr[0])<<8|(uint16_t)longaddr[1];
+  ip[1] = ((uint16_t)longaddr[2])<<8|(uint16_t)longaddr[3];
+  ip[2] = ((uint16_t)longaddr[4])<<8|(uint16_t)longaddr[5];
+  ip[3] = ((uint16_t)longaddr[6])<<8|(uint16_t)longaddr[7];
+#endif // USING_TARGET_CC2530
+
   uip_ip6addr(ipaddr, 0xaaaa, 0, 0, 0, 0x0212, ip[1], ip[2], ip[3]);
+
 }
+
+
 /*---------------------------------------------------------------------------*/
 static void
 tcpip_handler(void)
 {
   static char resp[MAX_PAYLOAD_LEN];
-  uint16_t rssi, lqi;
+  int16_t rssi, lqi;
 
   memset(resp, 0, MAX_PAYLOAD_LEN);
   memset(buf, 0, MAX_PAYLOAD_LEN);
@@ -96,12 +121,12 @@ tcpip_handler(void)
 
     if (buf[0]== 1) {
       PRINTF ("Execute CMD = led_on\n");
-      leds_off(LEDS_GREEN);
+      leds_on(LEDS_GREEN);
       sprintf(resp, "Replied = led_on OK\n");
     }
     else if (buf[0] == 2) {
       PRINTF ("Execute CMD = led_off\n");
-      leds_on(LEDS_GREEN);
+      leds_off(LEDS_GREEN);
       sprintf(resp, "Replied = led_off OK\n");
     }
     else if (buf[0] == 3) {

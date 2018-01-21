@@ -42,6 +42,16 @@
 #ifndef PROJECT_CONF_H_
 #define PROJECT_CONF_H_
 
+#define USING_TARGET 1
+
+#if USING_TARGET == 1
+#define USING_TARGET_CC2538
+#elif USING_TARGET == 2
+#define USING_TARGET_CC2530
+#elif USING_TARGET == 3
+#define USING_TARGET_SKY
+#endif // USING_TARGET
+
 #define UIP_CONF_ICMP6        1
 
 #endif /* PROJECT_CONF_H_ */
